@@ -1,0 +1,21 @@
+#!/bin/sh
+
+finish() {
+  echo "Exiting and cleaning up docker image"
+  docker-compose down
+}
+trap finish EXIT
+
+copyFiles() {
+  for dir in $(find plugins -mindepth 2 -type d); do
+		dirname=$(dirname $dir) 
+		cp -rv $dir ${HOME}/telegraf/$dirname
+	done
+}
+
+# Enter the docker container
+if [ -n "$1" ]; then
+  $1
+else 
+  docker-compose run -e UID=$(id -u) -e GID=$(id -g) build sh -c "cd /root/project && ./.run" 
+fi

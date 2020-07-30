@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+plugin=$1
+
+plugin_dir=$(find ~/telegraf/plugins -name $plugin)
+origdir=$PWD
+pushd $plugin_dir >/dev/null 2>&1
+if grep "package main" "${plugin}.go"; then
+  go build -buildmode=plugin -o "${origdir}/${plugin}.so" "${plugin}.go"
+fi
+popd >/dev/null 2>&1
+

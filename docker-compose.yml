@@ -1,0 +1,14 @@
+version: '3'
+services:
+  build:
+    image: srclosson/grafana-plugin-ci-e2e:latest
+    user: root
+    #    environment:
+            #- GOARCH=${GOARCH:-amd64}
+            #      - GOARM=${GOARM:-7}
+            #      - CC=${CC:-gcc} ##arm-linux-gnueabihf-gcc
+            #      - CGO_ENABLED=${CGO-ENABLED:-0} 
+            #      - GOOS=${GOOS:-linux}
+    volumes:
+      - ${HOME}/.ssh:/root/.ssh
+      - .:/root/project
