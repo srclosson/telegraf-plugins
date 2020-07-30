@@ -20,7 +20,7 @@ import (
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/plugins/inputs"
 	"github.com/influxdata/telegraf/plugins/parsers"
-	"github.com/influxdata/telegraf/plugins/parsers/fileinfo"
+	"github.com/srclosson/telegraf-plugins/plugins/parsers/fileinfo"
 	"github.com/rjeczalik/notify"
 )
 
