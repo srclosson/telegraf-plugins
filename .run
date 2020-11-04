@@ -1,1 +1,85 @@
-dist/
+#!/bin/bash
+
+# Get rid of cp if it exists
+/bin/rm -rf /usr/local/bin/cp
+
+[ -d "/tmp/telegraf" ] && /bin/rm -rf "/tmp/telegraf"
+
+#apt-get --allow-insecure-repositories update
+#apt-get install --allow-unauthenticated -y gccgo-arm-linux-gnueabihf gcc-arm-linux-gnueabihf
+#go install -a -v runtime
+
+# Make a dist dir if it does not exist
+[ -d "dist" ] && /bin/rm -rfv dist
+[ ! -d "./dist" ] && mkdir -pv "./dist"
+
+# Clone the telegraf repository
+git clone "https://github.com/influxdata/telegraf.git" "/tmp/telegraf"
+
+# Do this in a subshell because it will preserve the original directory
+(
+	cd "/tmp/telegraf"
+	git fetch
+	git fetch --tags
+	git checkout "v1.15.1"
+)
+
+RPATH=$(printf "%s" $(dirname "$0"))
+ABSPATH=$(pushd "$RPATH" > /dev/null && pwd -P && popd > /dev/null)
+
+cp ./etc/replacement.go.mod /tmp/telegraf/replacement.go.mod
+sed -ie "s@{{TELEGRAF_DS_PATH}}@$ABSPATH@g" /tmp/telegraf/replacement.go.mod
+
+IFS=$'\n'
+for line in $(awk '/\)/ {exit} /replace \(/ {f=1; next} f' /tmp/telegraf/replacement.go.mod); do
+  repo=$(echo "${line}" | awk '{print $1}')
+  dir=$(echo "${line}" | awk '{print $3}')
+  echo "${dir}" | grep -E "^[\.\/]{1}" 
+  if [ $? -eq 0 ] && [ ! -d "${dir}" ]; then
+      git clone https://${repo}.git "${dir}"
+      pushd "${dir}"
+      if [ -f "Gopkg.toml" ]; then
+	/bin/rm -rf Gopkg.toml
+	/bin/rm -rf Gopkg.lock
+      fi
+      if [ ! -f "go.mod" ]; then
+	go mod init $repo
+      fi
+      popd
+  fi
+done
+
+# Copy the telegraf directory over like an overlay to build
+#cp -vf Makefile "/tmp/telegraf/Makefile"
+cp -vf "/tmp/telegraf/replacement.go.mod" "/tmp/telegraf/go.mod"
+for d in $(find -mindepth 3 -maxdepth 3 -type d | cut -c 3-); do
+  echo "${d}"
+  [ -d "/tmp/telegraf/${d}" ] || mkdir -pv "/tmp/telegraf/${d}"
+  for d2 in $(ls $d); do
+    ln -vs "${PWD}/${d}/${d2}" "/tmp/telegraf/${d}/${d2}"
+  done
+done
+
+# Run the build for telegraf
+(
+	cd "/tmp/telegraf"
+	make
+)
+
+cp -vf "/tmp/telegraf/telegraf" ./dist
+
+origdir=${PWD}
+# Run the build for plugins
+#for d in $(find . -mindepth 3 -type d); do
+#     	dir=$(echo "$d" | cut -b 3-)   
+#	name=$(basename "$dir")
+#	echo "Building ${HOME}/telegraf/${dir}/${name}.go"
+#	cd "${HOME}/telegraf/${dir}"
+#	if grep "package main" "${name}.go"; then
+#		go build -buildmode=plugin -o "${origdir}/dist/${name}.so" "${name}.go"
+#        fi
+#	cd "${origdir}"
+#done
+
+chown -v $UID:$GID ./dist/telegraf
+#chown -v $UID:$GID ./dist/*.so
